@@ -58,18 +58,26 @@ async function getNotices() {
       "https://web.app.nierreincarnation.com/images/"
     )
 
+    const files: {
+      attachment: string;
+      name: string;
+    }[] = []
+
+    if (thumbnailUrl) {
+      files.push({
+        attachment: thumbnailUrl,
+        name: 'thumbnail.jpg'
+      })
+    }
+
     try {
       await webhookClient.send({
         content: text,
-        files: [{
-          // @ts-expect-error tqt
-          attachment: thumbnailUrl,
-          name: 'thumbnail.jpg'
-        }]
+        files,
       })
       console.log(`Published "${notice.notification_id}" (date: ${notice.release_time}).`)
 
-      const result = await prisma.nrg.notification.create({
+      await prisma.nrg.notification.create({
         data: notice
       })
       console.log('Added to db')
