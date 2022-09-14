@@ -1,8 +1,9 @@
 import prisma from "./libs/prisma"
-import { WebhookClient } from "discord.js"
+import { WebhookClient, EmbedBuilder, Embed } from "discord.js"
 import { convert } from 'html-to-text'
 import { env } from "./env";
 import cron from 'node-cron'
+import Splitter from './libs/Splitter';
 
 
 const webhookClient = new WebhookClient({
@@ -40,49 +41,78 @@ async function getNotices() {
   const noticesToPublish = existsNotices
     .filter((notice) => !notice.isExists)
 
-  console.log(noticesToPublish)
-
 
   for (const notification of noticesToPublish) {
     const { notice } = notification
     /**
      * Post on Discord
      */
-    const text = convert(notice.body as string, {
-      wordwrap: 130,
-
-    })
-
-    const thumbnailUrl = notice.thumbnail_path?.replace(
+     const thumbnailUrl = notice.thumbnail_path?.replace(
       "/images/",
       "https://web.app.nierreincarnation.com/images/"
     )
 
+    const text = convert(notice.body as string, {
+      wordwrap: 130,
+    })
+
+    const messages = Splitter.splitMessage(text)
     const files: {
       attachment: string;
       name: string;
     }[] = []
 
-    if (thumbnailUrl) {
-      files.push({
-        attachment: thumbnailUrl,
-        name: 'thumbnail.jpg'
-      })
-    }
+    const embed = new EmbedBuilder()
+      .setTitle(notice.title)
+      .setTimestamp(notice.release_time)
 
-    try {
-      await webhookClient.send({
-        content: text,
-        files,
-      })
-      console.log(`Published "${notice.notification_id}" (date: ${notice.release_time}).`)
+      if (thumbnailUrl) {
+        embed.setThumbnail(thumbnailUrl)
+        files.push({
+          attachment: thumbnailUrl,
+          name: 'thumbnail.jpg'
+        })
+      }
 
-      await prisma.nrg.notification.create({
-        data: notice
-      })
-      console.log('Added to db')
-    } catch (error) {
-      console.error(error)
+    if (messages.length > 1) {
+      try {
+        await prisma.nrg.notification.create({
+          data: notice
+        })
+        console.log(`${notice.notification_id} added to db.`)
+
+        for (const message of messages) {
+          const content = EmbedBuilder.from(embed)
+            .setDescription(message)
+
+          await webhookClient.send({
+            embeds: [content],
+            files
+          })
+          console.log(`Published "${notice.notification_id}" (date: ${notice.release_time}).`)
+        }
+      } catch (error) {
+        console.error(error)
+      }
+    } else {
+      try {
+        await prisma.nrg.notification.create({
+          data: notice
+        })
+        console.log(`${notice.notification_id} added to db.`)
+
+        const content = EmbedBuilder.from(embed)
+          .setDescription(messages[0])
+
+        await webhookClient.send({
+          embeds: [content],
+          files
+        })
+        console.log(`Published "${notice.notification_id}" (date: ${notice.release_time}).`)
+
+      } catch (error) {
+        console.error(error)
+      }
     }
 
     publishedCount++
@@ -97,3 +127,5 @@ async function getNotices() {
 
 
 cron.schedule('0 0 * * * *', getNotices).start();
+
+getNotices();
