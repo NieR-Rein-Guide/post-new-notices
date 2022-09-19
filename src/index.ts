@@ -4,7 +4,16 @@ import { convert } from 'html-to-text'
 import { env } from "./env";
 import cron from 'node-cron'
 import Splitter from './libs/Splitter';
+import snoowrap from 'snoowrap';
+import Turndown from 'turndown';
+const turndown = new Turndown();
 
+const r = new snoowrap({
+  userAgent: 'NieRReincarnation Notices v0.0.1',
+  clientId: env.REDDIT_CLIENT_ID,
+  clientSecret: env.REDDIT_CLIENT_SECRET,
+  refreshToken: env.REDDIT_REFRESH_TOKEN,
+});
 
 const webhookClient = new WebhookClient({
   url: env.WEBHOOK_URL
@@ -51,6 +60,22 @@ async function getNotices() {
       "/images/",
       "https://web.app.nierreincarnation.com/images/"
     )
+
+    try {
+      const markdown = turndown.turndown(notice.body?.replace(
+        /images/g,
+        "https://web.app.nierreincarnation.com/images/"
+      ) ?? 'Empty notice.')
+
+      // @ts-expect-error
+      await r.submitSelfpost({
+        subredditName: 'r/NieRReincarnation',
+        text: markdown,
+        title: `[NOTICE] ${notice.title}`,
+      })
+    } catch (error) {
+      console.error('[REDDIT] Error while submitting post.', error)
+    }
 
     const text = convert(notice.body as string, {
       wordwrap: 130,
