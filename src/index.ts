@@ -51,6 +51,8 @@ async function getNotices() {
     .filter((notice) => !notice.isExists)
 
 
+  // 15 min delay if rate limited
+  let delay = 900000;
   for (const notification of noticesToPublish) {
     const { notice } = notification
     /**
@@ -61,20 +63,32 @@ async function getNotices() {
       "https://web.app.nierreincarnation.com/images/"
     )
 
-    try {
-      const markdown = turndown.turndown(notice.body?.replace(
-        /images/g,
-        "https://web.app.nierreincarnation.com/images/"
-      ) ?? 'Empty notice.')
+    const markdown = turndown.turndown(notice.body?.replace(
+      /images/g,
+      "https://web.app.nierreincarnation.com/images"
+    ) ?? 'Empty notice.')
 
+    try {
       // @ts-expect-error
       await r.submitSelfpost({
         subredditName: 'r/NieRReincarnation',
         text: markdown,
         title: `[NOTICE] ${notice.title}`,
       })
+      console.log(`[REDDIT] Published post ${notice.notification_id}.`)
     } catch (error) {
-      console.error('[REDDIT] Error while submitting post.', error)
+      setTimeout(async () => {
+        // @ts-expect-error
+        await r.submitSelfpost({
+          subredditName: 'r/NieRReincarnation',
+          text: markdown,
+          title: `[NOTICE] ${notice.title}`,
+        }).catch((err) => console.error('[REDDIT] Error while resubmitting post.', err))
+
+        console.log(`[REDDIT] Retried: Published post ${notice.notification_id}.`)
+      }, delay);
+
+      delay += 900000
     }
 
     const text = convert(notice.body as string, {
