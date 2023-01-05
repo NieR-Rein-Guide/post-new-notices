@@ -4,7 +4,6 @@ import { PrismaClient as PrismaDump } from '@prisma/client'
 import { PrismaClient as PrismaNRG } from '@prisma/client-nrg'
 import { env } from '../env'
 
-
 const prisma = {
   dump: new PrismaDump({
     datasources: {
