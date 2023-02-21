@@ -23,6 +23,7 @@ async function getEndingEvents() {
     })
 
     if (interval.days === 3 && !cache.has(event.id)) {
+      console.log(event.attributes.title, interval)
       return true
     }
 
@@ -58,7 +59,7 @@ async function getEndingEvents() {
       embeds: [embed]
     })
 
-    cache.set(event.id, event)
+    cache.set(event.id, event.attributes.title)
 
     console.log(`[Discord] Published "${event.attributes.title}"`)
 
