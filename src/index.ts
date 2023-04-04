@@ -22,7 +22,12 @@ async function getEndingEvents() {
       end: new Date(event.attributes.end_date)
     })
 
-    if (interval.days === 3 && !cache.has(event.id)) {
+    if (
+      interval.days === 2
+      && interval.months === 0
+      && interval.years === 0
+      && !cache.has(event.id)
+    ) {
       console.log(event.attributes.title, interval)
       return true
     }
